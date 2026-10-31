@@ -1,0 +1,24 @@
+# Overlay for a shared single-server deployment with HTTPS at Caddy.
+# Use explicit -f files so a personal compose.override.yaml is not loaded.
+services:
+  api:
+    environment:
+      SIEM_PUBLIC_ORIGIN: https://${SIEM_DOMAIN:?Set SIEM_DOMAIN to the server DNS hostname}
+    # API's existing port stays bound to loopback for server-side administration only.
+  gateway:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      SIEM_DOMAIN: ${SIEM_DOMAIN:?Set SIEM_DOMAIN}
+    ports: ['80:80', '443:443']
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [host_access]
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  caddy-data:
+  caddy-config:

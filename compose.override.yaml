@@ -1,0 +1,9 @@
+services:
+  api:
+    networks:
+      - local
+      - host_access
+
+networks:
+  host_access:
+    driver: bridge

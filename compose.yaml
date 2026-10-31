@@ -1,0 +1,86 @@
+# Local development only: no dependency TLS/auth, no external dependency ports.
+name: siem-local
+x-app: &app
+  build: .
+  image: siem-engine:local
+  env_file: .env.local
+  networks: [local]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: [/tmp]
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --appendonly, 'yes', --appendfsync, always, --maxmemory, 256mb, --maxmemory-policy, noeviction]
+    volumes: [redis-data:/data]
+    networks: [local]
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.23
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes: [elastic-data:/usr/share/elasticsearch/data]
+    networks: [local]
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" >/dev/null']
+      interval: 10s
+      timeout: 7s
+      retries: 30
+
+  provision:
+    <<: *app
+    command: [python, database.py]
+    healthcheck:
+      disable: true
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  webhook:
+    <<: *app
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: [uvicorn, dev_webhook:app, --host, 0.0.0.0, --port, '8080', --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  api:
+    <<: *app
+    environment:
+      SIEM_IDENTITY_DB_PATH: /data/identities.sqlite3
+    volumes: [identity-data:/data]
+    networks: [local, host_access]
+    ports: ['127.0.0.1:8000:8000']
+    stop_grace_period: 45s
+    depends_on:
+      redis:
+        condition: service_healthy
+      provision:
+        condition: service_completed_successfully
+      webhook:
+        condition: service_healthy
+
+networks:
+  local:
+    internal: true
+  host_access:
+    driver: bridge
+volumes:
+  redis-data:
+  elastic-data:
+  identity-data:

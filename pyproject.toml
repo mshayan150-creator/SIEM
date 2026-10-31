@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+files = ["config.py", "schemas.py", "database.py", "cache.py", "engine.py", "main.py", "dashboard.py", "monitoring.py", "dev_webhook.py", "auth.py", "collectors/jsonl.py", "ops/admin.py", "ops/verify_pipeline.py"]

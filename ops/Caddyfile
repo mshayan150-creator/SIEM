@@ -1,0 +1,10 @@
+{$SIEM_DOMAIN} {
+    request_body {
+        max_size 2MB
+    }
+    header Strict-Transport-Security "max-age=31536000"
+    reverse_proxy api:8000 {
+        # Preserve incoming Host. Origin checks use configured SIEM_PUBLIC_ORIGIN.
+        # Client-supplied forwarded headers are not used for authorization.
+    }
+}

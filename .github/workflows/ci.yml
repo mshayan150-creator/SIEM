@@ -1,0 +1,41 @@
+name: Validate SIEM
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --require-hashes -r requirements.lock.txt
+      - run: pip install 'pytest>=8,<9' 'pytest-asyncio>=0.24,<1' 'fakeredis[lua]>=2.26,<3' 'mypy>=1.14,<2' 'ruff>=0.9,<1' pyyaml
+      - run: pytest -q
+      - run: ruff check .
+      - run: mypy
+      - run: node --check static/app.js
+      - run: python ops/init_local.py
+      - run: docker compose -f compose.yaml config --quiet
+      - run: docker compose -f compose.yaml -f compose.shared.yaml config --quiet
+        env:
+          SIEM_DOMAIN: siem.example.org
+      - run: docker compose -f compose.yaml up --build -d --wait --wait-timeout 240
+      - run: docker compose -f compose.yaml exec -T api python -m ops.verify_pipeline
+      - if: failure()
+        run: docker compose -f compose.yaml logs --tail 100
+      - if: always()
+        run: docker compose -f compose.yaml down
+  windows-syntax:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Windows PowerShell scripts
+        shell: powershell
+        run: |
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { $errors | Format-List; throw "PowerShell parse failed" }
+          }
