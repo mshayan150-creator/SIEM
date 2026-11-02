@@ -78,9 +78,12 @@
               id="username"
               required
               autocomplete="username"
-              pattern="[a-z0-9][a-z0-9_.-]{2,63}"
+              pattern="[a-z0-9][a-z0-9_.\-]{2,63}"
+              title="Use 3–64 lowercase letters, digits, dots, underscores or hyphens; start with a letter or digit."
               maxlength="64"
-              placeholder="Your username"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="Your lowercase username"
             /><label for="key">Password</label
             ><input
               id="key"
@@ -373,7 +376,8 @@
                     ><input
                       id="new-user"
                       required
-                      pattern="[a-z0-9][a-z0-9_.-]{2,63}"
+                      pattern="[a-z0-9][a-z0-9_.\-]{2,63}"
+              title="Use 3–64 lowercase letters, digits, dots, underscores or hyphens; start with a letter or digit."
                       maxlength="64"
                       autocomplete="off"
                     /><label for="new-password">Initial password</label
@@ -410,7 +414,7 @@
                     id="new-host"
                     required
                     maxlength="253"
-                    pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,252}"
+                    pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{0,252}"
                     placeholder="e.g. OFFICE-PC"
                   />
                   <p class="muted">

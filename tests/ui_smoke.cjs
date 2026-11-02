@@ -74,6 +74,16 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await page.locator("#console").waitFor({ state: "visible" });
     }
     await page.goto(base);
+    // HTML patterns use Unicode Sets (v), whose character classes require escaped hyphens.
+    await page.evaluate(() => {
+      for (const input of document.querySelectorAll("input[pattern]")) {
+        new RegExp(input.pattern, "v");
+      }
+    });
+    await page.locator("#username").fill("Invalid User");
+    assert.equal(await page.locator("#username").evaluate((el) => el.checkValidity()), false);
+    await page.locator("#username").fill("valid-user.name_1");
+    assert.equal(await page.locator("#username").evaluate((el) => el.checkValidity()), true);
     await screenshot("login");
     await login("admin", "Browser Test Password 2026!");
     assert.equal(await page.locator("#event-count").textContent(), "3");

@@ -139,3 +139,12 @@ def test_upgrade_preserves_existing_secrets(tmp_path, monkeypatch):
     assert upgraded == original
     upgrade_local.main()
     assert path.read_text() == upgraded
+
+
+async def test_login_invalid_format_has_actionable_error(context):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
+        result = await client.post('/api/v1/dashboard/login',
+                                   json={'username': 'Invalid User', 'password': 'test'},
+                                   headers={'Origin': 'http://test'})
+        assert result.status_code == 400
+        assert '3–64 lowercase' in result.json()['detail']

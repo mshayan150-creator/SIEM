@@ -46,7 +46,8 @@ async def login(request: Request) -> JSONResponse:
     try:
         data = Login.model_validate_json(await small_body(request, 2048))
     except ValidationError:
-        raise HTTPException(400, "Enter a username and password") from None
+        raise HTTPException(400, "Use a username of 3–64 lowercase letters, digits, dots, underscores or hyphens, "
+                            "starting with a letter or digit, and a password of 1–128 characters.") from None
     await rate_limit(request, "login-user", data.username, 10)
     async with request.app.state.password_slots:
         user = await asyncio.to_thread(request.app.state.identities.authenticate, data.username, data.password)
