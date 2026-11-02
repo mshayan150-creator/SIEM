@@ -1,3 +1,9 @@
+# Dashboard usability update
+
+The redesigned dashboard was checked at desktop (1440px) and mobile (390px) widths in Chromium. The automated browser test covers navigation, failed-event shortcuts, search/clear, outcome and severity filters, visible-row JSON export, evidence dialogs staying open through live refresh, hostile log text escaping, account creation, credential enrollment/download, revoke cancellation/confirmation, stale-state recovery, keyboard search, viewer restrictions and password changes.
+
+The existing **49 Python tests**, Ruff, mypy and JavaScript syntax checks pass. A browser regression job is included in GitHub Actions. Browser checks use the real FastAPI routes with temporary identities and simulated Redis/Elasticsearch dependencies; this does not replace the Docker/remote integration checks below.
+
 # Validation — shared-organization update
 
 ## Verified in this environment

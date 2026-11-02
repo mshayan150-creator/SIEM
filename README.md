@@ -14,6 +14,16 @@ This is a single-server implementation, not a multi-tenant SaaS or a certified e
 - Per-computer, one-time-issued collector tokens. Revocation blocks subsequent requests. Events and heartbeats must match the registered hostname; idempotency is scoped per collector.
 - Windows Event Log collector; portable Python collector for normalized JSONL files. Neither requires distributing server secrets.
 
+## Using the dashboard
+
+- **Overview:** activity metrics, hourly volume, pipeline health and recent incidents. The failed-events shortcut opens the Event explorer with the failure filter selected.
+- **Incidents:** filter the latest 50 loaded incidents by severity. Select a title for a focused evidence dialog; it stays open during live updates. Escape closes it, and Copy JSON copies the selected record.
+- **Event explorer:** search stored logs by message, account, hostname, dataset or action. Outcome and sort controls operate on the latest 100 loaded results, not all stored history. Export shown JSON downloads exactly the displayed subset. Press `/` outside a text field/dialog to focus event search.
+- **Sources & delivery:** collector heartbeats, queued records, dead letters and webhook acknowledgements.
+- **Settings:** change your password; administrators can create accounts, enroll computers and revoke credentials. Disabling an account or revoking a credential asks for confirmation. The last active administrator cannot be disabled.
+
+Pause live updates while investigating, use Refresh for a manual update, or resume the five-second refresh interval. If a request fails, the screen marks existing data as stale until a successful refresh. Event searches also filter event totals, failure counts and hourly volume; incidents remain unfiltered. The chart explicitly identifies an active search. Browser refresh/reopening restores the current section from the URL fragment, not credentials or event records.
+
 ## Run on your own computer
 
 Install Docker Engine + Compose v2 (Linux) or Docker Desktop (Windows/macOS). Allocate enough memory for Elasticsearch (the sample reserves a 512MB heap and a 2GB container limit). Extract the `siem` directory and open a terminal **inside it**, wherever you saved it.
@@ -102,3 +112,15 @@ node --check static/app.js
 The GitHub Actions workflow runs tests, type/lint/syntax checks, Compose startup and the pipeline verifier; a Windows job parses PowerShell scripts. The workflow assumes the contents of this `siem` directory are the repository root. It has not run on GitHub until published.
 
 `.gitignore` and `.dockerignore` exclude live environment files, identity databases, collector credentials, private keys, logs and build caches. Review `git diff --cached` before publishing. Never commit `.env.local`, collector JSON downloads, identity data, real logs or screenshots containing credentials.
+
+### Browser regression tests
+
+With the Python development environment activated, install the browser test runner and run:
+
+```sh
+npm install --no-save --package-lock=false playwright@1.51.1
+npx playwright install chromium
+node tests/ui_smoke.cjs
+```
+
+The test starts a loopback-only fixture server on port 8765 and shuts it down afterward. It exercises real FastAPI authorization/routes against temporary SQLite accounts, Lua-capable fakeredis and fixture Elasticsearch results. Never deploy `tests.ui_fixture`. `SIEM_TEST_PYTHON` can select a Python executable; `SIEM_SCREENSHOTS` optionally selects an existing private directory for visual QA screenshots. No JavaScript packages are required by the deployed dashboard.

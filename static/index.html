@@ -1,11 +1,481 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SIEM · Security operations</title><link rel="stylesheet" href="/assets/style.css"><script src="/assets/app.js" defer></script></head><body>
-<aside><div class="brand">◈ SIEM<span>SECURITY OPERATIONS</span></div><a href="#overview">Overview</a><a href="#alerts">Incidents</a><a href="#events">Event stream</a><a href="#delivery">Delivery & sources</a><p>Organization console<br>Refreshes every 5 seconds</p></aside>
-<main><header><div><small>SECURITY OPERATIONS / LIVE MONITORING</small><h1>Activity overview</h1><p>Understand what’s happening across your connected systems.</p></div><span id="account"></span><button id="logout" hidden>Sign out</button></header>
-<section id="login"><h2>Unlock your console</h2><p>Sign in with your organization account. Ask your administrator for access.</p><form id="login-form"><label for="username">Username</label><input id="username" required autocomplete="username" pattern="[a-z0-9][a-z0-9_.-]{2,63}" maxlength="64"><label for="key">Password</label><input id="key" type="password" required autocomplete="current-password" maxlength="128"><button>Connect</button></form><p id="login-error" role="alert"></p></section>
-<div id="console" hidden><div id="notice" role="status"></div><section id="overview" class="metrics"><article><small>EVENTS · LAST 24H</small><strong id="event-count">—</strong></article><article><small>SECURITY ALERTS · LAST 24H</small><strong id="alert-count">—</strong></article><article><small>FAILED EVENTS · LAST 24H</small><strong id="failure-count">—</strong></article><article><small>ACTIVE COLLECTORS</small><strong id="collector-count">—</strong></article></section>
-<section><div class="heading"><h2>Event volume</h2><span id="updated">Waiting for data</span></div><div id="chart" aria-label="Hourly event counts"></div><p class="muted">Hourly buckets · last 24 hours · event timestamps</p></section>
-<section id="alerts"><h2>Security incidents</h2><p class="muted">Latest 50 alerts · select an incident to inspect its evidence.</p><div id="alert-list"></div></section>
-<section id="events"><div class="heading"><h2>Event stream</h2><form id="search-form"><input id="search" placeholder="Search message, user, host…" maxlength="128" aria-label="Search events"><button>Search</button></form></div><p class="muted">Latest 100 matching events. Search also filters event totals and chart.</p><div class="table-wrap"><table><thead><tr><th>Time</th><th>Host / dataset</th><th>Action</th><th>Outcome</th><th>User / source</th><th>Message</th></tr></thead><tbody id="event-list"></tbody></table></div></section>
-<section id="delivery"><h2>Sources & delivery</h2><div class="columns"><article><h3>Connected collectors</h3><div id="collectors"></div></article><article><h3>Delivery queues</h3><div id="queues"></div></article></div><h3>Webhook delivery</h3><p class="muted">HTTP 2xx confirms acceptance. “Signature verified” confirms the included local receiver checked the payload. External receivers do not report here.</p><div id="deliveries"></div></section>
-<section><details><summary>Change my password</summary><form id="change-password"><label for="current-password">Current password</label><input id="current-password" type="password" required autocomplete="current-password"><label for="changed-password">New password</label><input id="changed-password" type="password" required minlength="15" maxlength="128" autocomplete="new-password"><button>Change password and sign out</button></form><p id="password-result" role="status"></p></details></section><section id="admin" hidden><h2>Organization administration</h2><p>All accounts share this organization’s logs. Viewers can read; administrators manage access.</p><div id="admin-error" role="alert"></div><div class="columns"><article><h3>Create an account</h3><form id="create-user"><label for="new-user">Username</label><input id="new-user" required pattern="[a-z0-9][a-z0-9_.-]{2,63}" maxlength="64" autocomplete="off"><label for="new-password">Initial password (15–128 characters)</label><input id="new-password" required type="password" minlength="15" maxlength="128" autocomplete="new-password"><label for="new-role">Role</label><select id="new-role"><option value="viewer">Viewer</option><option value="admin">Administrator</option></select><button>Create account</button></form><div id="users"></div></article><article><h3>Enroll a computer</h3><form id="create-collector"><label for="new-host">Computer hostname</label><input id="new-host" required maxlength="253" placeholder="e.g. OFFICE-PC"><p>Run hostname on the target computer to get its name.</p><button>Download collector configuration</button></form><p>Each configuration contains a unique secret. Give it only to that computer’s operator. Tokens are shown once and can be revoked below.</p><div id="registered-collectors"></div></article></div><h3>Recent access changes</h3><div id="audit"></div></section>
-</div><footer>SIEM ENGINE <span>Concurrent IP alerts are a heuristic, not proof of impossible travel.</span></footer></main></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0b111b" />
+    <title>SIEM · Security operations</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <aside class="sidebar">
+      <a class="brand" href="#overview"
+        ><span class="brand-mark" aria-hidden="true">◈</span
+        ><span
+          >SIEM<span class="brand-caption">SECURITY OPERATIONS</span></span
+        ></a
+      >
+      <span class="nav-label">WORKSPACE</span>
+      <nav aria-label="Main navigation" id="navigation">
+        <a href="#overview" data-view="overview"
+          ><span aria-hidden="true">▦</span>Overview</a
+        >
+        <a href="#alerts" data-view="alerts"
+          ><span aria-hidden="true">◉</span>Incidents<span
+            id="nav-alerts"
+            class="nav-count"
+            >—</span
+          ></a
+        >
+        <a href="#events" data-view="events"
+          ><span aria-hidden="true">≡</span>Event explorer</a
+        >
+        <a href="#delivery" data-view="delivery"
+          ><span aria-hidden="true">⇄</span>Sources & delivery</a
+        >
+        <a href="#settings" data-view="settings"
+          ><span aria-hidden="true">⚙</span>Settings</a
+        >
+      </nav>
+      <div class="sidebar-foot">
+        <span class="status-dot"></span> Shared organization
+        <p>One workspace. Every connected system.</p>
+        <kbd>/</kbd> <span>Search events</span>
+      </div>
+    </aside>
+    <main id="main" tabindex="-1">
+      <header class="topbar">
+        <span class="breadcrumb"
+          >Workspace <span>/</span> <strong id="crumb">Overview</strong></span
+        >
+        <div class="account-actions">
+          <span id="account"></span
+          ><button id="logout" class="quiet" hidden>Sign out</button>
+        </div>
+      </header>
+      <section id="login" class="login-card">
+        <div class="login-art">
+          <span class="eyebrow">YOUR SECURITY WORKSPACE</span>
+          <h1>Clarity across<br />every signal.</h1>
+          <p>
+            Follow activity, investigate incidents, and keep your connected
+            systems in view.
+          </p>
+          <div class="radar" aria-hidden="true">
+            <span></span><span></span><span></span><b>◈</b>
+          </div>
+          <small>PRIVATE ACCESS · SHARED VISIBILITY</small>
+        </div>
+        <div class="login-form">
+          <span class="eyebrow">WELCOME BACK</span>
+          <h2>Sign in to your workspace</h2>
+          <p>Use the account provided by your administrator.</p>
+          <form id="login-form">
+            <label for="username">Username</label
+            ><input
+              id="username"
+              required
+              autocomplete="username"
+              pattern="[a-z0-9][a-z0-9_.-]{2,63}"
+              maxlength="64"
+              placeholder="Your username"
+            /><label for="key">Password</label
+            ><input
+              id="key"
+              type="password"
+              required
+              autocomplete="current-password"
+              maxlength="128"
+              placeholder="Your password"
+            /><button class="primary wide">
+              Sign in <span aria-hidden="true">→</span>
+            </button>
+          </form>
+          <p id="login-error" role="alert"></p>
+          <p class="muted">
+            Need access? Contact your organization administrator.
+          </p>
+        </div>
+      </section>
+      <div id="console" hidden>
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">SECURITY OPERATIONS</span>
+            <h1 id="page-title">Overview</h1>
+            <p id="page-description">
+              A clear view of activity across your organization.
+            </p>
+          </div>
+          <div class="live-tools">
+            <span id="live-state" class="pill neutral">Connecting</span
+            ><button id="pause" class="quiet" aria-pressed="false">
+              Pause live</button
+            ><button id="refresh" class="secondary">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <div class="data-caption">
+          <span id="updated">Waiting for data…</span
+          ><span>Last 24 hours · your local time</span>
+        </div>
+        <div id="overview" class="view" data-panel="overview">
+          <section class="metrics" aria-label="Activity summary">
+            <article class="metric">
+              <span class="metric-icon mint" aria-hidden="true">≡</span
+              ><span class="eyebrow">EVENTS RECEIVED</span
+              ><strong id="event-count">—</strong
+              ><span class="metric-note" id="metric-scope">Last 24 hours</span>
+            </article>
+            <article class="metric">
+              <span class="metric-icon rose" aria-hidden="true">◉</span
+              ><span class="eyebrow">SECURITY INCIDENTS</span
+              ><strong id="alert-count">—</strong
+              ><button class="metric-link" data-go="alerts">
+                Review incidents <span aria-hidden="true">↗</span>
+              </button>
+            </article>
+            <article class="metric">
+              <span class="metric-icon amber" aria-hidden="true">!</span
+              ><span class="eyebrow">FAILED EVENTS</span
+              ><strong id="failure-count">—</strong
+              ><button id="view-failures" class="metric-link">
+                Inspect failures <span aria-hidden="true">↗</span>
+              </button>
+            </article>
+            <article class="metric">
+              <span class="metric-icon blue" aria-hidden="true">⇄</span
+              ><span class="eyebrow">ACTIVE COLLECTORS</span
+              ><strong id="collector-count">—</strong
+              ><button class="metric-link" data-go="delivery">
+                Manage sources <span aria-hidden="true">↗</span>
+              </button>
+            </article>
+          </section>
+          <div class="overview-grid">
+            <section class="card volume-card">
+              <div class="card-heading">
+                <div>
+                  <h2>Event activity</h2>
+                  <p id="activity-scope">
+                    Hourly volume across the last 24 hours
+                  </p>
+                </div>
+                <span class="legend"><i></i> Events</span>
+              </div>
+              <div id="chart" aria-label="Hourly event counts"></div>
+              <div class="chart-axis">
+                <span>24 hours ago</span><span>12 hours ago</span
+                ><span>Now</span>
+              </div>
+            </section>
+            <section class="card">
+              <div class="card-heading">
+                <h2>Pipeline health</h2>
+                <span id="health-state" class="pill neutral">Checking</span>
+              </div>
+              <div id="health-summary"></div>
+              <p class="muted">
+                Queue counts show work awaiting delivery. Dead letters need
+                investigation.
+              </p>
+              <button class="secondary wide" data-go="delivery">
+                View delivery status →
+              </button>
+            </section>
+          </div>
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>Recent incidents</h2>
+                <p>The latest signals requiring your attention</p>
+              </div>
+              <button class="quiet" data-go="alerts">View all →</button>
+            </div>
+            <div id="recent-alerts"></div>
+          </section>
+          <div id="onboarding" class="onboarding" hidden>
+            <div>
+              <strong>Connect your first computer</strong>
+              <p>
+                Enroll a source, start its collector, and see new events arrive
+                here.
+              </p>
+            </div>
+            <button class="primary" data-go="settings">Open settings →</button>
+          </div>
+        </div>
+        <div id="alerts" class="view" data-panel="alerts" hidden>
+          <section class="card">
+            <div class="toolbar">
+              <div class="field-inline">
+                <label for="severity">Severity</label
+                ><select id="severity">
+                  <option value="all">All severities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <span id="alert-summary" class="muted"></span>
+            </div>
+            <div id="alert-list"></div>
+            <p class="muted">
+              Latest 50 incidents within 24 hours. Select an incident to inspect
+              its evidence.
+            </p>
+          </section>
+        </div>
+        <div id="events" class="view" data-panel="events" hidden>
+          <section class="card event-card">
+            <div class="toolbar">
+              <form id="search-form" class="search-form">
+                <label class="sr-only" for="search">Search events</label
+                ><input
+                  id="search"
+                  placeholder="Search message, account, host…"
+                  maxlength="128"
+                /><button class="primary">Search</button
+                ><button id="clear-search" type="button" class="quiet">
+                  Clear
+                </button>
+              </form>
+              <button id="export-events" class="secondary">
+                Export shown JSON
+              </button>
+            </div>
+            <div class="toolbar filters">
+              <div class="field-inline">
+                <label for="outcome">Outcome</label
+                ><select id="outcome">
+                  <option value="all">All outcomes</option>
+                  <option value="failure">Failure</option>
+                  <option value="success">Success</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </div>
+              <div class="field-inline">
+                <label for="event-sort">Order</label
+                ><select id="event-sort">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </div>
+              <span id="event-summary" class="muted"></span>
+            </div>
+            <div
+              class="table-wrap"
+              tabindex="0"
+              role="region"
+              aria-label="Event results; scroll horizontally on small screens"
+            >
+              <table>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Host / dataset</th>
+                    <th>Action</th>
+                    <th>Outcome</th>
+                    <th>User / source</th>
+                    <th>Message</th>
+                    <th><span class="sr-only">Details</span></th>
+                  </tr>
+                </thead>
+                <tbody id="event-list"></tbody>
+              </table>
+            </div>
+            <p class="table-caption">
+              Search queries stored events. Outcome and order apply to the
+              latest 100 loaded results; exports contain only the rows shown.
+            </p>
+          </section>
+        </div>
+        <div id="delivery" class="view" data-panel="delivery" hidden>
+          <div class="columns">
+            <section class="card">
+              <div class="card-heading">
+                <h2>Connected collectors</h2>
+                <button class="quiet" data-go="settings">
+                  Enroll a computer →
+                </button>
+              </div>
+              <div id="collectors"></div>
+            </section>
+            <section class="card">
+              <h2>Delivery queues</h2>
+              <div id="queues"></div>
+            </section>
+          </div>
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>Webhook delivery</h2>
+                <p>Recent acknowledgements and verified receiver receipts</p>
+              </div>
+            </div>
+            <div id="deliveries"></div>
+            <p class="muted">
+              HTTP 2xx confirms acceptance. Signature verification is reported
+              by the included local receiver only.
+            </p>
+          </section>
+        </div>
+        <div id="settings" class="view" data-panel="settings" hidden>
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>Your account</h2>
+                <p>
+                  Changing your password signs out all of your active sessions.
+                </p>
+              </div>
+            </div>
+            <details>
+              <summary>Change password</summary>
+              <form id="change-password" class="compact-form">
+                <label for="current-password">Current password</label
+                ><input
+                  id="current-password"
+                  type="password"
+                  required
+                  autocomplete="current-password"
+                  maxlength="128"
+                /><label for="changed-password">New password</label
+                ><input
+                  id="changed-password"
+                  type="password"
+                  required
+                  minlength="15"
+                  maxlength="128"
+                  autocomplete="new-password"
+                /><button class="primary">Change password & sign out</button>
+              </form>
+              <p id="password-result" role="status"></p>
+            </details>
+          </section>
+          <section id="admin" hidden>
+            <div class="section-heading">
+              <h2>Organization administration</h2>
+              <p>
+                All accounts share this organization’s logs. Administrators
+                manage access.
+              </p>
+            </div>
+            <div id="admin-error" class="notice" role="status" hidden></div>
+            <div class="columns">
+              <article class="card">
+                <h2>Team access</h2>
+                <p>Invite a colleague with an individual account.</p>
+                <details>
+                  <summary>Create an account</summary>
+                  <form id="create-user">
+                    <label for="new-user">Username</label
+                    ><input
+                      id="new-user"
+                      required
+                      pattern="[a-z0-9][a-z0-9_.-]{2,63}"
+                      maxlength="64"
+                      autocomplete="off"
+                    /><label for="new-password">Initial password</label
+                    ><input
+                      id="new-password"
+                      required
+                      type="password"
+                      minlength="15"
+                      maxlength="128"
+                      autocomplete="new-password"
+                    />
+                    <p class="muted">
+                      15–128 characters; share privately with the new user.
+                    </p>
+                    <label for="new-role">Role</label
+                    ><select id="new-role">
+                      <option value="viewer">
+                        Viewer — inspect shared logs
+                      </option>
+                      <option value="admin">
+                        Administrator — manage access
+                      </option></select
+                    ><button class="primary">Create account</button>
+                  </form>
+                </details>
+                <div id="users"></div>
+              </article>
+              <article class="card">
+                <h2>Computer enrollment</h2>
+                <p>Give each computer its own revocable credential.</p>
+                <form id="create-collector">
+                  <label for="new-host">Computer hostname</label
+                  ><input
+                    id="new-host"
+                    required
+                    maxlength="253"
+                    pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,252}"
+                    placeholder="e.g. OFFICE-PC"
+                  />
+                  <p class="muted">
+                    Run <code>hostname</code> on the target computer. The
+                    configuration contains a secret and is downloaded once.
+                  </p>
+                  <button class="primary">
+                    Enroll & download configuration
+                  </button>
+                </form>
+                <div id="registered-collectors"></div>
+              </article>
+            </div>
+            <section class="card">
+              <h2>Recent access changes</h2>
+              <div id="audit"></div>
+            </section>
+          </section>
+        </div>
+        <footer>
+          <span
+            >SIEM ENGINE <span class="footer-dot">·</span> Shared
+            organization</span
+          ><span
+            >Concurrent IP alerts are a heuristic, not proof of impossible
+            travel.</span
+          >
+        </footer>
+      </div>
+    </main>
+    <dialog
+      id="detail-dialog"
+      class="detail-dialog"
+      aria-labelledby="detail-title"
+    >
+      <div class="dialog-heading">
+        <div>
+          <span id="detail-kind" class="eyebrow">DETAILS</span>
+          <h2 id="detail-title">Event details</h2>
+        </div>
+        <button id="close-detail" class="quiet" aria-label="Close details">
+          ✕
+        </button>
+      </div>
+      <div id="detail-summary"></div>
+      <div class="card-heading">
+        <h3>Full record</h3>
+        <button id="copy-detail" class="secondary">Copy JSON</button>
+      </div>
+      <pre id="detail-json" tabindex="0"></pre>
+      <p id="detail-feedback" class="muted" role="status"></p>
+      <p class="muted">This record stays open while live data refreshes.</p>
+    </dialog>
+    <dialog
+      id="confirm-dialog"
+      class="confirm-dialog"
+      aria-labelledby="confirm-title"
+    >
+      <h2 id="confirm-title">Confirm change</h2>
+      <p id="confirm-message"></p>
+      <div class="dialog-actions">
+        <button id="confirm-cancel" class="secondary" autofocus>Cancel</button
+        ><button id="confirm-accept" class="danger">Confirm</button>
+      </div>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+  </body>
+</html>
