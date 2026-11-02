@@ -6,6 +6,7 @@ import time
 from datetime import UTC, datetime
 
 import httpx
+from elasticsearch import ApiError
 from redis.asyncio import Redis
 
 from auth import IdentityStore
@@ -38,9 +39,18 @@ async def main() -> None:
             print('Ingestion:', result.json())
         deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
-            alerts = await db.client.search(index='siem-security-alerts', query={'term': {'affected_asset.user.name': identity}}, size=10)
-            ids = [item['_source']['id'] for item in alerts['hits']['hits']]
-            logs = await db.client.count(index='siem-events-logs-*', query={'term': {'user.name': identity}})
+            try:
+                alerts = await db.client.search(index='siem-security-alerts', query={'term': {'affected_asset.user.name': identity}}, size=10)
+                ids = [item['_source']['id'] for item in alerts['hits']['hits']]
+                logs = await db.client.count(index='siem-events-logs-*', query={'term': {'user.name': identity}})
+            except ApiError as exc:
+                # A fresh index may exist before its primary shard is searchable.
+                # Keep the original deadline; auth and other errors must still fail.
+                if exc.status_code not in (404, 503):
+                    raise
+                print(f'Waiting for Elasticsearch indices/shards (HTTP {exc.status_code}).')
+                await asyncio.sleep(2)
+                continue
             if len(ids) == 2 and logs['count'] == 8:
                 delivered = [await redis.get(PREFIX + 'deliveries:' + i) for i in ids]
                 received = [await redis.get(PREFIX + 'receipts:' + i) for i in ids]
